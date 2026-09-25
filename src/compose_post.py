@@ -1,3 +1,4 @@
+import random
 import re
 
 # Matches em dash and en dash
@@ -136,26 +137,58 @@ def join_names(names):
     return ", ".join(names[:-1]) + " and " + names[-1]
 
 
+# Rotating intro templates so the opening greeting is not identical
+# every single day. First-person, blog voice, no exclamation marks.
+INTRO_TEMPLATES = [
+    "Hey friends, welcome back. Today I'm taking a look at {lineup}, "
+    "the names everyone in crypto seems to be talking about right now. "
+    "Let's see why each one is trending.",
+
+    "Hi everyone, good to have you here again. Today I'm digging into "
+    "{lineup}, since these are the coins catching the most attention "
+    "right now. Here's what's behind the moves.",
+
+    "Welcome back to the blog. Today I want to walk through {lineup} "
+    "and explain what's driving all the attention.",
+
+    "Hey there, thanks for stopping by. Today's post covers {lineup}, "
+    "a lineup of coins making noise in the market right now.",
+
+    "Hello again. Today I'm breaking down {lineup} and why each of "
+    "them is trending.",
+]
+
+
 def build_intro(items):
     """
     Warm, blogger-style opening greeting plus a one to two sentence
-    heads up on what today's post covers.
+    heads up on what today's post covers. Picks a random template each
+    run so the greeting does not read the same in every post.
     """
     names = [item["name"] for item in items]
     lineup = join_names(names)
-    intro = (
-        f"Hey friends, welcome back! Today we are taking a look at {lineup}, "
-        f"the names everyone in crypto seems to be talking about right now. "
-        f"Let's get into why each one is trending."
-    )
+    template = random.choice(INTRO_TEMPLATES)
+    intro = template.format(lineup=lineup)
     return clean_style(intro)
+
+
+def build_disclaimer():
+    """
+    Short reminder that trending does not mean safe or reliable. Not
+    financial advice, just a heads up to be careful.
+    """
+    return clean_style(
+        "Quick reminder before you go: just because a coin or token is "
+        "trending does not mean it is safe or reliable. Always do your "
+        "own research and be careful with your decisions."
+    )
 
 
 def build_farewell():
     """
     Short, friendly sign-off at the end of the post.
     """
-    return clean_style("That is all for today's roundup, see you again tomorrow!")
+    return clean_style("That is all for today's roundup, see you again tomorrow.")
 
 
 def build_source_sentence(sources):
@@ -179,8 +212,9 @@ def build_post_body(items_with_details, sources, blurb_fn=build_blurb_template):
     intro = build_intro(items_with_details)
     body = "\n\n".join(sections)
     closing = build_source_sentence(sources)
+    disclaimer = build_disclaimer()
     farewell = build_farewell()
-    return f"{intro}\n\n{body}\n\n---\n\n{closing}\n\n{farewell}"
+    return f"{intro}\n\n{body}\n\n---\n\n{closing}\n\n{disclaimer}\n\n{farewell}"
 
 
 def build_title(items):
