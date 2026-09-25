@@ -2,7 +2,7 @@ name: Daily Content Post
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # 09:00 UTC every day, adjust to taste
+    - cron: '0 18 * * *'  # 18:00 UTC = 21:00 Turkey time (UTC+3, no DST)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -28,5 +28,9 @@ jobs:
         env:
           ACCOUNT: ${{ secrets.ACCOUNT }}
           POSTING_KEY: ${{ secrets.POSTING_KEY }}
-          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+          # Manual runs use whatever "dry_run" input you pick (defaults
+          # to true, so manual testing stays safe). The daily scheduled
+          # run has no input to read, so it falls through to "false"
+          # and actually publishes.
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: python main.py
