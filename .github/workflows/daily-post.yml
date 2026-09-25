@@ -1,0 +1,32 @@
+name: Daily Content Post
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 09:00 UTC every day, adjust to taste
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'true = simulate only, false = actually publish'
+        required: false
+        default: 'true'
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run
+        env:
+          ACCOUNT: ${{ secrets.ACCOUNT }}
+          POSTING_KEY: ${{ secrets.POSTING_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+        run: python main.py
