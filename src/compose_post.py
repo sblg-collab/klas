@@ -45,12 +45,28 @@ def trim_to_sentence(desc, max_len=280, search_window=SENTENCE_SEARCH_WINDOW):
     return cut.strip() + "."
 
 
-def build_blurb_template(item):
+# Rotating openers so every item doesn't start with the same
+# "X is trending today" phrasing. {name} and {symbol} get filled in.
+OPENERS = [
+    "{name} ({symbol}) is trending today.",
+    "Let's talk about {name} ({symbol}), because it is on the move today.",
+    "{name} ({symbol}) has caught our eye today.",
+    "Next up is {name} ({symbol}), another name people are watching today.",
+    "Here is why {name} ({symbol}) is on everyone's radar today.",
+    "{name} ({symbol}) is one of today's big talking points.",
+]
+
+
+def build_blurb_template(item, index=0):
     """
     Fallback template used when no LLM key is configured. Casual,
     blog-style, one short paragraph per item. Good enough to ship
     while the pipeline is being tested; swap in build_blurb_llm once
     an LLM key is wired up in main.py for higher quality writing.
+
+    `index` picks a different opening line for each item in the post
+    (rotating through OPENERS) so the blurbs do not all start with the
+    same "X is trending today" sentence.
     """
     name = item["name"]
     symbol = (item.get("symbol") or "").upper()
@@ -73,19 +89,25 @@ def build_blurb_template(item):
 
     trimmed_desc = trim_to_sentence(desc, max_len=280)
 
-    blurb = f"{name} ({symbol}) is trending today. {market_line} {trimmed_desc}".strip()
+    opener = OPENERS[index % len(OPENERS)].format(name=name, symbol=symbol)
+
+    blurb = f"{opener} {market_line} {trimmed_desc}".strip()
     return clean_style(blurb)
 
 
-def build_blurb_llm(item, client=None):
+def build_blurb_llm(item, client=None, index=0):
     """
     Optional higher quality path: call an LLM to write the blurb in a
     casual blog voice. Pass a configured client from main.py once an
     API key is available as a GitHub secret; falls back to the plain
     template otherwise so the pipeline never breaks for lack of a key.
+
+    `index` is accepted for signature parity with build_blurb_template
+    (build_post_body passes it to whichever blurb_fn is in use); the
+    LLM is prompted directly to vary its own opening lines.
     """
     if client is None:
-        return build_blurb_template(item)
+        return build_blurb_template(item, index=index)
 
     prompt = (
         f"Write one short, casual blog style paragraph (3 to 4 sentences) explaining "
@@ -94,6 +116,7 @@ def build_blurb_llm(item, client=None):
         f"24 hour price change: {item.get('price_change_24h')} percent. "
         f"Do not use an Oxford comma. Do not use an em dash or en dash. "
         f"Always finish every sentence you start, never trail off with '...'. "
+        f"Vary your opening line, do not always start with '{item['name']} is trending today'. "
         f"Keep it friendly and easy to read, like a knowledgeable friend explaining it."
     )
     text = client.generate(prompt)
@@ -148,8 +171,8 @@ def build_source_sentence(sources):
 
 def build_post_body(items_with_details, sources, blurb_fn=build_blurb_template):
     sections = []
-    for item in items_with_details:
-        blurb = blurb_fn(item)
+    for index, item in enumerate(items_with_details):
+        blurb = blurb_fn(item, index=index)
         image_line = f"![{item['name']}]({item['image_large']})\n*Image source: CoinGecko*"
         sections.append(f"## {item['name']} ({(item.get('symbol') or '').upper()})\n\n{image_line}\n\n{blurb}")
 
