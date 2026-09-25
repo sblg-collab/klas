@@ -18,7 +18,7 @@ def main():
 
     title = build_title(items_with_details)
     body = build_post_body(items_with_details, SOURCES)
-    tags = ["trending", "daily", "notes"]
+    tags = ["crypto", "money", "hive-engine", "leo", "palnet"]
 
     result = publish_post(
         title=title,
