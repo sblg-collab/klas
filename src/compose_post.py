@@ -3,6 +3,10 @@ import re
 # Matches em dash and en dash
 DASH_PATTERN = re.compile(r"[\u2014\u2013]")
 
+# How far past the soft length limit we're willing to look for a sentence
+# ending before we give up and just cut on a word boundary.
+SENTENCE_SEARCH_WINDOW = 200
+
 
 def clean_style(text):
     """
@@ -12,6 +16,33 @@ def clean_style(text):
     text = re.sub(r",\s*and\b", " and", text)
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()
+
+
+def trim_to_sentence(desc, max_len=280, search_window=SENTENCE_SEARCH_WINDOW):
+    """
+    Trim a description to roughly max_len characters, but never mid
+    sentence. Looks for the last sentence-ending punctuation at or
+    shortly after max_len; if none is found it falls back to cutting
+    on a word boundary and closing the sentence with a period, so we
+    never ship a dangling "..." fragment.
+    """
+    if not desc:
+        return desc
+    if len(desc) <= max_len:
+        return desc
+
+    search_end = min(len(desc), max_len + search_window)
+    segment = desc[:search_end]
+    matches = list(re.finditer(r"[.!?](?:\s|$)", segment))
+    if matches:
+        end_idx = matches[-1].end()
+        return desc[:end_idx].strip()
+
+    cut = desc[:max_len]
+    last_space = cut.rfind(" ")
+    if last_space > 0:
+        cut = cut[:last_space]
+    return cut.strip() + "."
 
 
 def build_blurb_template(item):
@@ -40,7 +71,7 @@ def build_blurb_template(item):
         market_line = " and ".join(parts)
         market_line = market_line[0].upper() + market_line[1:] + "."
 
-    trimmed_desc = (desc[:280] + "...") if len(desc) > 280 else desc
+    trimmed_desc = trim_to_sentence(desc, max_len=280)
 
     blurb = f"{name} ({symbol}) is trending today. {market_line} {trimmed_desc}".strip()
     return clean_style(blurb)
@@ -62,10 +93,46 @@ def build_blurb_llm(item, client=None):
         f"today. Use this context: {item.get('description', '')}. "
         f"24 hour price change: {item.get('price_change_24h')} percent. "
         f"Do not use an Oxford comma. Do not use an em dash or en dash. "
+        f"Always finish every sentence you start, never trail off with '...'. "
         f"Keep it friendly and easy to read, like a knowledgeable friend explaining it."
     )
     text = client.generate(prompt)
     return clean_style(text)
+
+
+def join_names(names):
+    """
+    Turns ['A', 'B', 'C'] into 'A, B and C' (Oxford-comma-free, matching
+    house style).
+    """
+    names = [n for n in names if n]
+    if not names:
+        return ""
+    if len(names) == 1:
+        return names[0]
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def build_intro(items):
+    """
+    Warm, blogger-style opening greeting plus a one to two sentence
+    heads up on what today's post covers.
+    """
+    names = [item["name"] for item in items]
+    lineup = join_names(names)
+    intro = (
+        f"Hey friends, welcome back! Today we are taking a look at {lineup}, "
+        f"the names everyone in crypto seems to be talking about right now. "
+        f"Let's get into why each one is trending."
+    )
+    return clean_style(intro)
+
+
+def build_farewell():
+    """
+    Short, friendly sign-off at the end of the post.
+    """
+    return clean_style("That is all for today's roundup, see you again tomorrow!")
 
 
 def build_source_sentence(sources):
@@ -76,7 +143,7 @@ def build_source_sentence(sources):
         joined = sources[0]
     else:
         joined = ", ".join(sources[:-1]) + " and " + sources[-1]
-    return clean_style(f"All the data and images in this post come from {joined}, pulled fresh today.")
+    return clean_style(f"By the way, all the data and images in this post are sourced from {joined}.")
 
 
 def build_post_body(items_with_details, sources, blurb_fn=build_blurb_template):
@@ -86,9 +153,11 @@ def build_post_body(items_with_details, sources, blurb_fn=build_blurb_template):
         image_line = f"![{item['name']}]({item['image_large']})\n*Image source: CoinGecko*"
         sections.append(f"## {item['name']} ({(item.get('symbol') or '').upper()})\n\n{image_line}\n\n{blurb}")
 
+    intro = build_intro(items_with_details)
     body = "\n\n".join(sections)
     closing = build_source_sentence(sources)
-    return f"{body}\n\n---\n\n{closing}"
+    farewell = build_farewell()
+    return f"{intro}\n\n{body}\n\n---\n\n{closing}\n\n{farewell}"
 
 
 def build_title(items):
