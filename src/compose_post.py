@@ -206,7 +206,7 @@ def build_post_body(items_with_details, sources, blurb_fn=build_blurb_template):
     sections = []
     for index, item in enumerate(items_with_details):
         blurb = blurb_fn(item, index=index)
-        image_line = f"![{item['name']}]({item['image_large']})\n*Image source: CoinGecko*"
+        image_line = f"![{item['name']}]({item['image_large']})\n\n*Image source: CoinGecko*"
         sections.append(f"## {item['name']} ({(item.get('symbol') or '').upper()})\n\n{image_line}\n\n{blurb}")
 
     intro = build_intro(items_with_details)
