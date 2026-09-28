@@ -1,5 +1,8 @@
+import os
 import random
 import re
+
+from src.publish import get_recent_titles
 
 # Matches em dash and en dash
 DASH_PATTERN = re.compile(r"[\u2014\u2013]")
@@ -217,6 +220,31 @@ def build_post_body(items_with_details, sources, blurb_fn=build_blurb_template):
     return f"{intro}\n\n{body}\n\n---\n\n{closing}\n\n{disclaimer}\n\n{farewell}"
 
 
-def build_title(items):
+# Used when the same title was already posted recently, tried in order.
+REPEAT_TITLE_TEMPLATES = [
+    "Why {lead} Is Trending Again Today",
+    "Why {lead} Is Back on Top Today",
+    "Why {lead} Is Still Trending Today",
+    "Why {lead} Is Number One Again Today",
+    "Why {lead} Keeps Trending Today",
+]
+
+
+def build_title(items, recent_titles=None):
+    """
+    Default title is "Why X Is Trending Today". If a recent post already
+    used that exact title, pick the next "again" style variant instead.
+    """
     lead = items[0]["name"] if items else "Today"
-    return clean_style(f"Why {lead} Is Trending Today")
+    if recent_titles is None:
+        recent_titles = get_recent_titles(os.getenv("ACCOUNT"))
+    used = {t.strip().lower() for t in recent_titles}
+
+    candidates = [f"Why {lead} Is Trending Today"]
+    candidates += [t.format(lead=lead) for t in REPEAT_TITLE_TEMPLATES]
+    candidates = [clean_style(c) for c in candidates]
+
+    for candidate in candidates:
+        if candidate.lower() not in used:
+            return candidate
+    return f"Why {lead} Is Trending Yet Again Today"

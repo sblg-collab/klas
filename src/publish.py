@@ -1,4 +1,63 @@
 import os
+import re
+from datetime import datetime, timezone
+
+
+def get_recent_titles(account, limit=10):
+    """
+    Returns the titles of the account's most recent posts (newest first),
+    or an empty list if Hive can't be reached. Read-only, needs no key.
+    """
+    if not account:
+        return []
+    try:
+        from beem import Hive
+        from beem.account import Account
+
+        acc = Account(account, blockchain_instance=Hive())
+        titles = []
+        for entry in acc.get_blog(limit=limit):
+            if entry["author"] == account and entry["title"]:
+                titles.append(entry["title"])
+        return titles
+    except Exception as exc:
+        print(f"Could not fetch recent titles: {exc}")
+        return []
+
+
+def make_permlink(title):
+    """Title to URL slug: lowercase letters, digits and hyphens only."""
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    return slug[:200] or "post"
+
+
+def permlink_exists(account, permlink, client):
+    from beem.comment import Comment
+
+    try:
+        Comment(f"@{account}/{permlink}", blockchain_instance=client)
+        return True
+    except Exception:
+        return False
+
+
+def unique_permlink(account, title, client):
+    """
+    Hive treats a repeated permlink as an EDIT of the old post, so never
+    reuse one. Try the plain slug first; if that URL is taken, add the
+    date, and if that is taken too, add the time as well.
+    """
+    base = make_permlink(title)
+    now = datetime.now(timezone.utc)
+    candidates = [
+        base,
+        f"{base}-{now:%Y%m%d}",
+        f"{base}-{now:%Y%m%d-%H%M%S}",
+    ]
+    for candidate in candidates:
+        if not permlink_exists(account, candidate, client):
+            return candidate
+    return candidates[-1]
 
 
 def publish_post(title, body, tags, account, posting_key):
@@ -27,13 +86,8 @@ def publish_post(title, body, tags, account, posting_key):
         raise RuntimeError("ACCOUNT and POSTING_KEY must be set to publish for real.")
 
     client = Hive(keys=[posting_key])
-    permlink = (
-        title.lower()
-        .replace(" ", "-")
-        .replace(",", "")
-        .replace("(", "")
-        .replace(")", "")[:255]
-    )
+    permlink = unique_permlink(account, title, client)
+    print(f"Permlink: {permlink}")
 
     result = client.post(
         title=title,
