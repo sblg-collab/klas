@@ -28,6 +28,9 @@ jobs:
         env:
           ACCOUNT: ${{ secrets.ACCOUNT }}
           POSTING_KEY: ${{ secrets.POSTING_KEY }}
+          # Optional: set a repository variable APP_NAME to change the
+          # "app" field in the post's json_metadata. Defaults to "hive".
+          APP_NAME: ${{ vars.APP_NAME || 'hive' }}
           # Manual runs use whatever "dry_run" input you pick (defaults
           # to true, so manual testing stays safe). The daily scheduled
           # run has no input to read, so it falls through to "false"
