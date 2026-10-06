@@ -60,13 +60,16 @@ def unique_permlink(account, title, client):
     return candidates[-1]
 
 
-def publish_post(title, body, tags, account, posting_key):
+def publish_post(title, body, tags, account, posting_key, app_name="hive"):
     """
     Publishes, or simulates publishing, a post to the target platform.
 
     Controlled by the DRY_RUN environment variable, which defaults to
     "true" so nothing is ever broadcast by accident. Set it to "false"
     only once the simulated output has been reviewed and looks right.
+
+    app_name is written to the post's json_metadata ("app" field). beem
+    would otherwise stamp it as "beem/<version>".
     """
     dry_run = os.getenv("DRY_RUN", "true").lower() != "false"
 
@@ -75,6 +78,7 @@ def publish_post(title, body, tags, account, posting_key):
         print(f"Account: {account}")
         print(f"Title: {title}")
         print(f"Tags: {tags}")
+        print(f"App: {app_name}")
         print("Body:\n")
         print(body)
         print("\n=== End of simulated post. ===")
@@ -95,5 +99,6 @@ def publish_post(title, body, tags, account, posting_key):
         author=account,
         permlink=permlink,
         tags=tags,
+        app=app_name,
     )
     return result
