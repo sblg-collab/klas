@@ -181,7 +181,7 @@ def build_disclaimer():
     financial advice, just a heads up to be careful.
     """
     return clean_style(
-        "Quick reminder before you go: just because a coin or token is "
+        "Quick reminder before you go. Just because a coin or token is "
         "trending does not mean it is safe or reliable. Always do your "
         "own research and be careful with your decisions."
     )
