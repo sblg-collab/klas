@@ -21,7 +21,7 @@ def main():
 
     title = build_title(items_with_details)
     body = build_post_body(items_with_details, SOURCES)
-    tags = ["crypto", "meme", "hive-engine", "leo", "pepe", "life", "blog"]
+    tags = ["crypto", "meme", "hive-engine", "leo", "pepe", "life", "blog", "waivio", "inleo", "alive"]
 
     result = publish_post(
         title=title,
