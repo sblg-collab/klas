@@ -8,6 +8,9 @@ from src.publish import publish_post
 SOURCES = ["CoinGecko"]
 NUM_ITEMS = 5
 
+# Value written to json_metadata["app"]. Override with the APP_NAME env var.
+APP_NAME = os.getenv("APP_NAME") or "hive"
+
 
 def main():
     account = os.getenv("ACCOUNT")
@@ -26,6 +29,7 @@ def main():
         tags=tags,
         account=account,
         posting_key=posting_key,
+        app_name=APP_NAME,
     )
     print(result)
 
